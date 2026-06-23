@@ -63,9 +63,10 @@ export const Settings: React.FC = () => {
 
   const connectLocalWS = () => {
     if (typeof window === 'undefined') return;
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.host || 'localhost:3000';
-    const wsUrl = `${protocol}//${host}`;
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const wsUrl = isLocal
+      ? `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`
+      : 'ws://localhost:3000';
 
     const socket = new WebSocket(wsUrl);
     wsRef.current = socket;
