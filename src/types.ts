@@ -13,7 +13,7 @@ export interface Message {
 export interface Config {
   twitchChannel: string;
   youtubeId: string;
-  youtubeType: 'channelId' | 'liveId';
+  youtubeType: 'channelId' | 'liveId' | 'handle';
   tiktokUsername: string;
   enabledPlatforms: {
     twitch: boolean;

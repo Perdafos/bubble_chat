@@ -182,9 +182,14 @@ function startYouTube() {
 
   console.log(`Connecting to YouTube live chat for: ${config.youtubeId} (${config.youtubeType})`);
   
-  const options = config.youtubeType === 'liveId' 
-    ? { liveId: config.youtubeId }
-    : { channelId: config.youtubeId };
+  let options;
+  if (config.youtubeType === 'liveId') {
+    options = { liveId: config.youtubeId };
+  } else if (config.youtubeType === 'handle') {
+    options = { handle: config.youtubeId };
+  } else {
+    options = { channelId: config.youtubeId };
+  }
 
   try {
     youtubeClient = new LiveChat(options);

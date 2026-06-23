@@ -13,7 +13,7 @@ import '../settings.css';
 export const Settings: React.FC = () => {
   const [twitchChannel, setTwitchChannel] = useState('');
   const [youtubeId, setYoutubeId] = useState('');
-  const [youtubeType, setYoutubeType] = useState<'channelId' | 'liveId'>('channelId');
+  const [youtubeType, setYoutubeType] = useState<'channelId' | 'liveId' | 'handle'>('channelId');
   const [tiktokUsername, setTiktokUsername] = useState('');
   
   const [twitchEnable, setTwitchEnable] = useState(true);
@@ -37,7 +37,7 @@ export const Settings: React.FC = () => {
       
       const savedTwitch = localStorage.getItem('twitchChannel') || 'perdafos';
       const savedYoutube = localStorage.getItem('youtubeId') || '';
-      const savedYoutubeType = (localStorage.getItem('youtubeType') as 'channelId' | 'liveId') || 'channelId';
+      const savedYoutubeType = (localStorage.getItem('youtubeType') as 'channelId' | 'liveId' | 'handle') || 'channelId';
       const savedTiktok = localStorage.getItem('tiktokUsername') || '';
 
       const savedTwitchEnable = localStorage.getItem('twitchEnable') !== 'false';
@@ -122,13 +122,83 @@ export const Settings: React.FC = () => {
     return `${appUrl}/${queryString}`;
   };
 
+  // Helper to extract YouTube ID and Type from any YouTube URL format
+  const extractYoutubeId = (input: string) => {
+    const cleanInput = input.trim();
+    
+    const videoIdRegexes = [
+      /youtube\.com\/watch\?v=([^&\s]+)/i,
+      /youtube\.com\/live\/([^?\s]+)/i,
+      /youtu\.be\/([^?\s]+)/i,
+      /studio\.youtube\.com\/video\/([^/\s]+)/i,
+      /youtube\.com\/live_chat\?v=([^&\s]+)/i,
+      /v=([^&\s]+)/i
+    ];
+    
+    for (const regex of videoIdRegexes) {
+      const match = cleanInput.match(regex);
+      if (match && match[1]) {
+        return { id: match[1], type: 'liveId' as const };
+      }
+    }
+    
+    const channelIdRegex = /youtube\.com\/channel\/(UC[^/\s?]+)/i;
+    const channelMatch = cleanInput.match(channelIdRegex);
+    if (channelMatch && channelMatch[1]) {
+      return { id: channelMatch[1], type: 'channelId' as const };
+    }
+    
+    const handleRegex = /youtube\.com\/@([^/\s?]+)/i;
+    const handleMatch = cleanInput.match(handleRegex);
+    if (handleMatch && handleMatch[1]) {
+      return { id: '@' + handleMatch[1], type: 'handle' as const };
+    }
+    
+    if (cleanInput.startsWith('UC')) {
+      return { id: cleanInput, type: 'channelId' as const };
+    }
+    
+    if (cleanInput.startsWith('@')) {
+      return { id: cleanInput, type: 'handle' as const };
+    }
+    
+    return { id: cleanInput, type: 'liveId' as const };
+  };
+
+  const handleYoutubeIdChange = (val: string) => {
+    setYoutubeId(val);
+    
+    const isUrl = val.includes('youtube.com') || val.includes('youtu.be') || val.includes('studio.youtube.com');
+    const isIdOrHandle = val.startsWith('@') || val.startsWith('UC') || val.includes('v=');
+    
+    if (isUrl || isIdOrHandle) {
+      const parsed = extractYoutubeId(val);
+      if (parsed.id) {
+        setYoutubeId(parsed.id);
+        setYoutubeType(parsed.type);
+      }
+    }
+  };
+
   // Save Settings
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    let finalId = youtubeId.trim();
+    let finalType = youtubeType;
+
+    // Double check parse on save
+    if (youtubeId.includes('youtube.com') || youtubeId.includes('youtu.be') || youtubeId.includes('studio.youtube.com') || youtubeId.includes('v=')) {
+      const parsed = extractYoutubeId(youtubeId);
+      finalId = parsed.id;
+      finalType = parsed.type;
+      setYoutubeId(parsed.id);
+      setYoutubeType(parsed.type);
+    }
     
     localStorage.setItem('twitchChannel', twitchChannel);
-    localStorage.setItem('youtubeId', youtubeId);
-    localStorage.setItem('youtubeType', youtubeType);
+    localStorage.setItem('youtubeId', finalId);
+    localStorage.setItem('youtubeType', finalType);
     localStorage.setItem('tiktokUsername', tiktokUsername);
     
     localStorage.setItem('twitchEnable', twitchEnable ? 'true' : 'false');
@@ -143,8 +213,8 @@ export const Settings: React.FC = () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             twitchChannel,
-            youtubeId,
-            youtubeType,
+            youtubeId: finalId,
+            youtubeType: finalType,
             tiktokUsername,
             enabledPlatforms: {
               twitch: twitchEnable,
@@ -161,6 +231,7 @@ export const Settings: React.FC = () => {
     setCopied(false);
     alert('Pengaturan disimpan!');
   };
+
 
   const copyToClipboard = () => {
     const url = generateOverlayUrl();
@@ -284,21 +355,22 @@ export const Settings: React.FC = () => {
               <label>Metode Hubung</label>
               <select 
                 value={youtubeType}
-                onChange={(e) => setYoutubeType(e.target.value as 'channelId' | 'liveId')}
+                onChange={(e) => setYoutubeType(e.target.value as 'channelId' | 'liveId' | 'handle')}
                 disabled={!youtubeEnable}
               >
                 <option value="channelId">Channel ID (Deteksi Live Otomatis)</option>
                 <option value="liveId">Live Video ID (v=XXXXXX)</option>
+                <option value="handle">Handle / @Username</option>
               </select>
             </div>
 
             <div className="form-group">
-              <label>YouTube ID</label>
+              <label>Link URL YouTube / ID</label>
               <input 
                 type="text" 
                 value={youtubeId}
-                onChange={(e) => setYoutubeId(e.target.value)}
-                placeholder="ID channel atau ID Video Live" 
+                onChange={(e) => handleYoutubeIdChange(e.target.value)}
+                placeholder="Tempel link Live Stream, link Channel, Handle @, atau ID" 
                 disabled={!youtubeEnable}
               />
             </div>
