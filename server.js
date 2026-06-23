@@ -8,7 +8,6 @@ const cors = require('cors');
 // Import stream SDKs
 const tmi = require('tmi.js');
 const { LiveChat } = require('youtube-chat');
-const { WebcastPushConnection } = require('tiktok-live-connector');
 
 const app = express();
 app.use(cors());
@@ -228,7 +227,7 @@ function startYouTube() {
 }
 
 // TikTok Setup
-function startTikTok() {
+async function startTikTok() {
   if (tiktokClient) {
     try { tiktokClient.disconnect(); } catch (e) {}
     tiktokClient = null;
@@ -252,6 +251,7 @@ function startTikTok() {
   }
 
   try {
+    const { WebcastPushConnection } = await import('tiktok-live-connector');
     tiktokClient = new WebcastPushConnection(cleanUsername);
 
     tiktokClient.connect().then(state => {
