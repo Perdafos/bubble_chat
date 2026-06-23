@@ -195,39 +195,13 @@ export const Overlay: React.FC = () => {
           nameColor = getUsernameColor(msg.username);
         }
 
-        const initial = msg.displayName ? msg.displayName.charAt(0) : msg.username.charAt(0);
-        const fallbackBg = getUsernameColor(msg.username);
-
         return (
           <div
             key={msg.id}
             className={`bubble platform-${msg.platform} ${msg.exiting ? 'fade-out' : ''}`}
           >
-            <div className="avatar-container">
-              {msg.avatar ? (
-                <img
-                  src={msg.avatar}
-                  className="avatar"
-                  alt={msg.displayName}
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                    const fallback = e.currentTarget.nextElementSibling as HTMLElement;
-                    if (fallback) fallback.style.display = 'flex';
-                  }}
-                />
-              ) : null}
-              <div
-                className="default-avatar"
-                style={{
-                  background: fallbackBg,
-                  display: msg.avatar ? 'none' : 'flex'
-                }}
-              >
-                {initial}
-              </div>
-              <div className="platform-badge" title={msg.platform}>
-                {ICONS[msg.platform]}
-              </div>
+            <div className="platform-icon-container" title={msg.platform}>
+              {ICONS[msg.platform]}
             </div>
             <div className="chat-content">
               <div className="user-name-wrapper">

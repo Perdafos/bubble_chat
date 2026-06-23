@@ -83,70 +83,43 @@ body {
     background: linear-gradient(to bottom, #25f4ee, #fe2c55);
 }
 
-/* User Avatar Styling */
-.avatar-container {
-    position: relative;
+/* Platform Icon Container Styling */
+.platform-icon-container {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6.5px;
     margin-right: 12px;
     flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    transition: transform 0.2s ease;
 }
 
-.avatar {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    object-fit: cover;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+.platform-twitch .platform-icon-container {
+    background: linear-gradient(135deg, #a970ff, #6441a5);
+    border: 1px solid rgba(169, 112, 255, 0.35);
 }
 
-/* Fallback avatar if no profile picture */
-.default-avatar {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 700;
-    font-size: 14px;
-    color: #ffffff;
-    text-transform: uppercase;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+.platform-youtube .platform-icon-container {
+    background: linear-gradient(135deg, #ff4e50, #ff0000);
+    border: 1px solid rgba(255, 78, 80, 0.35);
 }
 
-/* Small Platform Badge over Avatar */
-.platform-badge {
-    position: absolute;
-    bottom: -4px;
-    right: -4px;
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 3px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+.platform-tiktok .platform-icon-container {
+    background: linear-gradient(135deg, #25f4ee, #fe2c55);
+    border: 1px solid rgba(37, 244, 238, 0.35);
 }
 
-.platform-twitch .platform-badge {
-    background: #6441a5;
-}
-.platform-youtube .platform-badge {
-    background: #ff0000;
-}
-.platform-tiktok .platform-badge {
-    background: #000000;
-    border: 0.5px solid rgba(255, 255, 255, 0.2);
-}
-
-.platform-badge svg {
+.platform-icon-container svg {
     width: 100%;
     height: 100%;
     fill: white;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
 }
+
 
 /* Chat text content */
 .chat-content {
