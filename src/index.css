@@ -1,3 +1,7 @@
+:root {
+    --font-outfit: 'Outfit', sans-serif;
+}
+
 * {
     box-sizing: border-box;
     margin: 0;
@@ -97,7 +101,7 @@ body {
     box-shadow: 0 2px 8px rgba(0,0,0,0.2);
 }
 
-/* If no avatar, twitch uses custom badge or letter avatar */
+/* Fallback avatar if no profile picture */
 .default-avatar {
     width: 36px;
     height: 36px;

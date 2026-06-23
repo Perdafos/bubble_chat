@@ -4,16 +4,20 @@ const WebSocket = require('ws');
 const fs = require('fs');
 const path = require('path');
 const cors = require('cors');
-const next = require('next');
 
 // Import stream SDKs
 const tmi = require('tmi.js');
 const { LiveChat } = require('youtube-chat');
 
-// Dev check
-const dev = process.env.NODE_ENV !== 'production';
-const nextApp = next({ dev });
-const handle = nextApp.getRequestHandler();
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+// Serve static files from the 'dist' directory (compiled React TS app)
+app.use(express.static(path.join(__dirname, 'dist')));
+
+const server = http.createServer(app);
+const wss = new WebSocket.Server({ server });
 
 const CONFIG_PATH = path.join(__dirname, 'config.json');
 
@@ -82,9 +86,7 @@ function saveConfig() {
 }
 
 // Broadcast to all WebSocket clients
-let wss = null;
 function broadcast(data) {
-  if (!wss) return;
   const payload = JSON.stringify(data);
   wss.clients.forEach(client => {
     if (client.readyState === WebSocket.OPEN) {
@@ -317,74 +319,70 @@ function startConnections() {
   startTikTok();
 }
 
-// Initialize Next.js app and run Custom Server
-nextApp.prepare().then(() => {
-  const app = express();
-  app.use(cors());
-  app.use(express.json());
+// Initialize
+loadConfig();
+startConnections();
 
-  // API Routes for settings (local run only)
-  app.get('/api/config', (req, res) => {
-    res.json(config);
+// WebSockets logic
+wss.on('connection', ws => {
+  console.log('WS Client connected');
+  
+  // Send current configuration and connection status on connect
+  ws.send(JSON.stringify({
+    type: 'init',
+    config: config,
+    status: status
+  }));
+
+  ws.on('close', () => {
+    console.log('WS Client disconnected');
   });
+});
 
-  app.post('/api/config', (req, res) => {
-    const newConfig = req.body;
-    config = {
-      twitchChannel: newConfig.twitchChannel || "",
-      youtubeId: newConfig.youtubeId || "",
-      youtubeType: newConfig.youtubeType || "channelId",
-      tiktokUsername: newConfig.tiktokUsername || "",
-      enabledPlatforms: {
-        twitch: !!newConfig.enabledPlatforms?.twitch,
-        youtube: !!newConfig.enabledPlatforms?.youtube,
-        tiktok: !!newConfig.enabledPlatforms?.tiktok
-      }
-    };
-    saveConfig();
-    startConnections();
-    res.json({ success: true, config });
-  });
+// API Routes
+app.get('/api/config', (req, res) => {
+  res.json(config);
+});
 
-  app.get('/api/status', (req, res) => {
-    res.json(status);
-  });
+app.post('/api/config', (req, res) => {
+  const newConfig = req.body;
+  
+  // Merge and update
+  config = {
+    twitchChannel: newConfig.twitchChannel || "",
+    youtubeId: newConfig.youtubeId || "",
+    youtubeType: newConfig.youtubeType || "channelId",
+    tiktokUsername: newConfig.tiktokUsername || "",
+    enabledPlatforms: {
+      twitch: !!newConfig.enabledPlatforms?.twitch,
+      youtube: !!newConfig.enabledPlatforms?.youtube,
+      tiktok: !!newConfig.enabledPlatforms?.tiktok
+    }
+  };
 
-  // Hand off all other requests to Next.js handler (pages, css, next api routes)
-  app.all('*', (req, res) => {
-    return handle(req, res);
-  });
-
-  // Create HTTP Server
-  const PORT = process.env.PORT || 3000;
-  const server = http.createServer(app);
-
-  // Setup WebSocket Server for stream overlay communication
-  wss = new WebSocket.Server({ server });
-
-  wss.on('connection', ws => {
-    console.log('WS Client connected');
-    ws.send(JSON.stringify({
-      type: 'init',
-      config: config,
-      status: status
-    }));
-    ws.on('close', () => {
-      console.log('WS Client disconnected');
-    });
-  });
-
-  // Initialize stream integrations
-  loadConfig();
+  saveConfig();
+  
+  // Restart connections
   startConnections();
 
-  server.listen(PORT, () => {
-    console.log(`===============================================`);
-    console.log(`Next.js Bubble Chat Server running at:`);
-    console.log(`Overlay URL : http://localhost:${PORT}/`);
-    console.log(`Settings URL: http://localhost:${PORT}/settings`);
-    console.log(`===============================================`);
-  });
-}).catch(err => {
-  console.error('Error starting Next.js Custom Server:', err);
+  res.json({ success: true, config });
+});
+
+app.get('/api/status', (req, res) => {
+  res.json(status);
+});
+
+// Handle React SPA routing (serve index.html for any unmatched route)
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+});
+
+// Start the HTTP server
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+  console.log(`===============================================`);
+  console.log(`Bubble Chat Overlay Server running at:`);
+  console.log(`Overlay URL : http://localhost:${PORT}/`);
+  console.log(`Settings URL: http://localhost:${PORT}/settings`);
+  console.log(`===============================================`);
 });

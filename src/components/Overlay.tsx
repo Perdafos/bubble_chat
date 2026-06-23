@@ -1,7 +1,5 @@
-'use client';
-
-import { Suspense, useEffect, useState, useRef } from 'react';
-import { useSearchParams } from 'next/navigation';
+import React, { useEffect, useState, useRef } from 'react';
+import type { Message } from '../types';
 
 // SVG Platform Icons
 const ICONS = {
@@ -23,7 +21,7 @@ const ICONS = {
 };
 
 // Username HSL pastel color generator
-function getUsernameColor(username) {
+function getUsernameColor(username: string): string {
   let hash = 0;
   for (let i = 0; i < username.length; i++) {
     hash = username.charCodeAt(i) + ((hash << 5) - hash);
@@ -32,33 +30,26 @@ function getUsernameColor(username) {
   return `hsl(${h}, 90%, 72%)`;
 }
 
-function OverlayContent() {
-  const searchParams = useSearchParams();
-  const [messages, setMessages] = useState([]);
+export const Overlay: React.FC = () => {
+  const [messages, setMessages] = useState<Message[]>([]);
   
-  // Ref to track seen message IDs to avoid duplicates in polling
-  const seenIdsRef = useRef(new Set());
-  const isFirstYtFetchRef = useRef(true);
-  const tmiClientRef = useRef(null);
-  const wsRef = useRef(null);
+  const seenIdsRef = useRef<Set<string>>(new Set());
+  const tmiClientRef = useRef<any>(null);
+  const wsRef = useRef<WebSocket | null>(null);
 
-  // Parse configurations from query parameters
+  // Parse configurations from query parameters (Vite React frontend)
+  const searchParams = new URLSearchParams(window.location.search);
   const twitchChannel = searchParams.get('twitch') || '';
-  const youtubeId = searchParams.get('youtube') || '';
-  const youtubeType = searchParams.get('youtubeType') || 'channelId';
-  const tiktokUsername = searchParams.get('tiktok') || '';
   
-  // Decide whether to try local WebSocket connection first (default is true unless offline specified)
   const isLocalMode = searchParams.get('local') !== 'false';
 
-  // Helper to add message with a self-destruct timer
-  const addMessage = (msg) => {
+  // Helper to add message with self-destruct transition timers
+  const addMessage = (msg: Message) => {
     if (seenIdsRef.current.has(msg.id)) return;
     seenIdsRef.current.add(msg.id);
 
     const messageId = msg.id;
     
-    // Append message to state
     setMessages((prev) => {
       const updated = [...prev, { ...msg, exiting: false }];
       if (updated.length > 40) updated.shift();
@@ -79,30 +70,25 @@ function OverlayContent() {
   };
 
   useEffect(() => {
-    // Show welcome bubble info
+    // Show welcome bubble
     addMessage({
       id: 'sys-welcome',
       platform: 'twitch',
       username: 'system',
       displayName: 'System',
-      message: 'Bubble Chat Overlay Aktif! Menghubungkan ke streams...',
+      message: 'React TS Bubble Chat Overlay Aktif! Menghubungkan...',
       color: '#10b981',
       avatar: '',
       timestamp: Date.now()
     });
 
-    let activeTwitch = twitchChannel;
-    let activeYoutube = youtubeId;
-    let activeYoutubeType = youtubeType;
-
     // --- MODE 1: LOCAL WEBSOCKET CONNECTION ---
     if (isLocalMode) {
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      // Fallback to localhost if host is not available (e.g. in file system or Vercel static)
       const host = window.location.host || 'localhost:3000';
       const wsUrl = `${protocol}//${host}`;
 
-      console.log(`Trying Local WebSocket server: ${wsUrl}`);
+      console.log(`Connecting to local WebSocket server: ${wsUrl}`);
       const socket = new WebSocket(wsUrl);
       wsRef.current = socket;
 
@@ -123,13 +109,7 @@ function OverlayContent() {
       socket.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          
-          if (data.type === 'init') {
-            // If connected to local backend, we can override query params with server configs if local settings are saved
-            if (data.config) {
-              console.log('Received server config:', data.config);
-            }
-          } else if (data.type === 'message') {
+          if (data.type === 'message') {
             addMessage(data);
           }
         } catch (err) {
@@ -144,15 +124,14 @@ function OverlayContent() {
           platform: 'youtube',
           username: 'system',
           displayName: 'System',
-          message: 'Server lokal offline. Menggunakan koneksi browser langsung (Twitch & YouTube saja).',
+          message: 'Server lokal offline. Menggunakan koneksi browser langsung (Twitch saja).',
           color: '#f59e0b',
           avatar: '',
           timestamp: Date.now()
         });
         
-        // Start standalone fallbacks
-        startStandaloneTwitch(activeTwitch);
-        startStandaloneYouTube(activeYoutube, activeYoutubeType);
+        // Start standalone fallback for Twitch
+        startStandaloneTwitch(twitchChannel);
       };
 
       socket.onerror = () => {
@@ -160,27 +139,26 @@ function OverlayContent() {
       };
     } else {
       // --- MODE 2: STANDALONE MODE DIRECTLY ---
-      console.log('Standalone mode forced. Connecting directly from browser.');
-      startStandaloneTwitch(activeTwitch);
-      startStandaloneYouTube(activeYoutube, activeYoutubeType);
+      console.log('Standalone mode forced. Connecting to Twitch directly.');
+      startStandaloneTwitch(twitchChannel);
     }
 
-    // CLEANUP ON UNMOUNT
     return () => {
       if (wsRef.current) wsRef.current.close();
       if (tmiClientRef.current) {
         try { tmiClientRef.current.disconnect(); } catch (e) {}
       }
     };
-  }, [twitchChannel, youtubeId, youtubeType, isLocalMode]);
+  }, [twitchChannel, isLocalMode]);
 
   // Twitch Client-side connection helper
-  const startStandaloneTwitch = (channel) => {
+  const startStandaloneTwitch = (channel: string) => {
     if (!channel) return;
     console.log(`Connecting directly to Twitch chat: ${channel}`);
 
-    // Import tmi.js dynamically client-side to prevent Next.js SSR errors
-    import('tmi.js').then((tmi) => {
+    // Import tmi.js dynamically client-side to prevent compilation issues
+    import('tmi.js').then((tmiModule) => {
+      const tmi = tmiModule.default || tmiModule;
       const client = new tmi.Client({
         options: { debug: false },
         connection: { secure: true, reconnect: true },
@@ -189,13 +167,13 @@ function OverlayContent() {
 
       tmiClientRef.current = client;
 
-      client.on('message', (chan, tags, message, self) => {
+      client.on('message', (_chan: string, tags: any, message: string, self: boolean) => {
         if (self) return;
         addMessage({
           id: tags.id || Math.random().toString(36).substr(2, 9),
           platform: 'twitch',
-          username: tags.username,
-          displayName: tags['display-name'] || tags.username,
+          username: tags.username || 'user',
+          displayName: tags['display-name'] || tags.username || 'user',
           message: message,
           color: tags.color || '#a970ff',
           avatar: '',
@@ -203,44 +181,10 @@ function OverlayContent() {
         });
       });
 
-      client.connect().catch((err) => {
+      client.connect().catch((err: any) => {
         console.error('Twitch direct connection failed:', err);
       });
     });
-  };
-
-  // YouTube Client-side polling helper
-  const startStandaloneYouTube = (ytId, ytType) => {
-    if (!ytId) return;
-    console.log(`Starting standalone YouTube chat polling for ID: ${ytId} (${ytType})`);
-
-    const pollYouTube = async () => {
-      try {
-        const res = await fetch(`/api/youtube?type=${ytType}&id=${ytId}`);
-        const data = await res.json();
-        
-        if (data.success && data.messages) {
-          if (isFirstYtFetchRef.current) {
-            // First fetch: just populate seen list so we don't spam historical chat
-            data.messages.forEach(msg => seenIdsRef.current.add(msg.id));
-            isFirstYtFetchRef.current = false;
-            console.log(`Initial YouTube poll: loaded ${data.messages.length} historical messages.`);
-          } else {
-            // Subsequent fetches: display new incoming messages
-            data.messages.forEach(msg => addMessage(msg));
-          }
-        }
-      } catch (err) {
-        console.error('YouTube poll error:', err);
-      }
-    };
-
-    // Initial fetch
-    pollYouTube();
-
-    // Poll YouTube every 4 seconds
-    const interval = setInterval(pollYouTube, 4000);
-    return () => clearInterval(interval);
   };
 
   return (
@@ -267,7 +211,7 @@ function OverlayContent() {
                   alt={msg.displayName}
                   onError={(e) => {
                     e.currentTarget.style.display = 'none';
-                    const fallback = e.currentTarget.nextElementSibling;
+                    const fallback = e.currentTarget.nextElementSibling as HTMLElement;
                     if (fallback) fallback.style.display = 'flex';
                   }}
                 />
@@ -298,12 +242,4 @@ function OverlayContent() {
       })}
     </div>
   );
-}
-
-export default function Page() {
-  return (
-    <Suspense fallback={null}>
-      <OverlayContent />
-    </Suspense>
-  );
-}
+};
