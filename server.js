@@ -58,6 +58,21 @@ function loadConfig() {
   } catch (err) {
     console.error('Error loading config:', err);
   }
+
+  // Override with environment variables if set (useful for cloud hosting like Render/Railway)
+  if (process.env.TWITCH_CHANNEL) {
+    config.twitchChannel = process.env.TWITCH_CHANNEL;
+    config.enabledPlatforms.twitch = true;
+  }
+  if (process.env.YOUTUBE_ID) {
+    config.youtubeId = process.env.YOUTUBE_ID;
+    config.youtubeType = process.env.YOUTUBE_TYPE || 'channelId';
+    config.enabledPlatforms.youtube = true;
+  }
+  if (process.env.TIKTOK_USERNAME) {
+    config.tiktokUsername = process.env.TIKTOK_USERNAME;
+    config.enabledPlatforms.tiktok = true;
+  }
 }
 
 // Save config
