@@ -1,14 +1,20 @@
 {
   "name": "bubble-chat-overlay",
   "version": "1.0.0",
-  "description": "Multi-stream bubble chat overlay for Twitch, YouTube, and TikTok",
+  "description": "Multi-stream bubble chat overlay for Twitch, YouTube, and TikTok using Next.js and React",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "dev": "node server.js",
+    "build": "next build",
+    "start": "NODE_ENV=production node server.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.21.2",
+    "lucide-react": "^0.379.0",
+    "next": "^14.2.3",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "tiktok-live-connector": "^2.4.0",
     "tmi.js": "^1.8.5",
     "ws": "^8.18.0",
