@@ -208,7 +208,10 @@ export const Settings: React.FC = () => {
     // Save to local server config if active
     if (isServerActive) {
       try {
-        await fetch('/api/config', {
+        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const configUrl = isLocal ? '/api/config' : 'http://localhost:3000/api/config';
+
+        await fetch(configUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
