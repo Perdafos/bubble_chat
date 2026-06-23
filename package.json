@@ -1,0 +1,17 @@
+{
+  "name": "bubble-chat-overlay",
+  "version": "1.0.0",
+  "description": "Multi-stream bubble chat overlay for Twitch, YouTube, and TikTok",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "tiktok-live-connector": "^2.4.0",
+    "tmi.js": "^1.8.5",
+    "ws": "^8.18.0",
+    "youtube-chat": "^2.2.0"
+  }
+}

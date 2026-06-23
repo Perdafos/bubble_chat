@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Stream Chat Dashboard</title>
+    <!-- Google Fonts: Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0d0e12;
+            --card-bg: #16181f;
+            --text-color: #f3f4f6;
+            --text-muted: #9ca3af;
+            --border-color: #272a37;
+            
+            --twitch-color: #a970ff;
+            --youtube-color: #ff4e50;
+            --tiktok-color: #25f4ee;
+            --tiktok-accent: #fe2c55;
+            
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --info-color: #3b82f6;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Outfit', sans-serif;
+            padding: 40px 20px;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            max-width: 1000px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 12px;
+        }
+
+        header h1 {
+            font-size: 32px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #a970ff, #25f4ee, #fe2c55);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 6px;
+        }
+
+        header p {
+            color: var(--text-muted);
+            font-size: 16px;
+        }
+
+        /* Setup cards grid */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            position: relative;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+        }
+
+        /* Platform specific borders on hover */
+        .card.twitch-card { border-top: 4px solid var(--twitch-color); }
+        .card.youtube-card { border-top: 4px solid var(--youtube-color); }
+        .card.tiktok-card { border-top: 4px solid var(--tiktok-color); }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 12px;
+        }
+
+        .platform-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .platform-title svg {
+            width: 24px;
+            height: 24px;
+            fill: currentColor;
+        }
+
+        .twitch-card .platform-title { color: var(--twitch-color); }
+        .youtube-card .platform-title { color: var(--youtube-color); }
+        .tiktok-card .platform-title { color: var(--tiktok-color); }
+
+        /* Status Badge */
+        .status-badge {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            padding: 4px 8px;
+            border-radius: 20px;
+            letter-spacing: 0.5px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .status-disconnected {
+            background-color: rgba(156, 163, 175, 0.15);
+            color: var(--text-muted);
+        }
+        .status-connecting {
+            background-color: rgba(245, 158, 11, 0.15);
+            color: var(--warning-color);
+            animation: pulse 1.5s infinite;
+        }
+        .status-connected {
+            background-color: rgba(16, 185, 129, 0.15);
+            color: var(--success-color);
+        }
+        .status-error {
+            background-color: rgba(239, 68, 68, 0.15);
+            color: var(--danger-color);
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+        }
+
+        /* Form styling */
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        label {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        input[type="text"], select {
+            background-color: #0d0e12;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px 14px;
+            color: var(--text-color);
+            font-family: inherit;
+            font-size: 15px;
+            outline: none;
+            transition: border-color 0.2s;
+            width: 100%;
+        }
+
+        input[type="text"]:focus, select:focus {
+            border-color: #4facfe;
+        }
+
+        /* Switch Toggle */
+        .toggle-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: rgba(255,255,255,0.02);
+            padding: 12px 14px;
+            border-radius: 8px;
+            border: 1px dashed var(--border-color);
+        }
+
+        .toggle-label {
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 48px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #272a37;
+            transition: .3s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: var(--success-color);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(24px);
+        }
+
+        /* Save Button */
+        .action-bar {
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        .btn-save {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: #0d0e12;
+            border: none;
+            border-radius: 12px;
+            padding: 14px 40px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(79, 172, 254, 0.3);
+            transition: transform 0.2s, box-shadow 0.2s;
+            font-family: inherit;
+        }
+
+        .btn-save:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(79, 172, 254, 0.4);
+        }
+
+        .btn-save:active {
+            transform: translateY(1px);
+        }
+
+        /* Live Chat Feed / Preview Panel */
+        .preview-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+        }
+
+        .preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 12px;
+            margin-bottom: 16px;
+        }
+
+        .preview-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .preview-log {
+            background-color: #0d0e12;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            height: 250px;
+            overflow-y: auto;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            font-size: 14px;
+        }
+
+        .log-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            padding: 6px 8px;
+            border-radius: 6px;
+            background-color: rgba(255,255,255,0.01);
+            animation: fadeIn 0.3s ease;
+        }
+
+        .log-tag {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #0d0e12;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .log-tag.twitch { background-color: var(--twitch-color); color: #fff; }
+        .log-tag.youtube { background-color: var(--youtube-color); color: #fff; }
+        .log-tag.tiktok { background-color: var(--tiktok-color); color: #0d0e12; }
+
+        .log-name {
+            font-weight: 600;
+            color: var(--text-color);
+        }
+
+        .log-msg {
+            color: var(--text-muted);
+            word-break: break-all;
+        }
+
+        .empty-log {
+            color: var(--text-muted);
+            text-align: center;
+            margin-top: 100px;
+            font-style: italic;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Success notification pop */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background-color: var(--success-color);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 100;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        /* Responsive spacing */
+        @media(max-width: 600px) {
+            body { padding: 20px 10px; }
+            .cards-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Bubble Chat Dashboard</h1>
+            <p>Konfigurasi live stream chat Twitch, YouTube, dan TikTok</p>
+        </header>
+
+        <form id="configForm" onsubmit="saveConfiguration(event)">
+            <div class="cards-grid">
+                
+                <!-- TWITCH CARD -->
+                <div class="card twitch-card">
+                    <div class="card-header">
+                        <div class="platform-title">
+                            <!-- Twitch SVG -->
+                            <svg viewBox="0 0 24 24"><path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714Z"/></svg>
+                            Twitch
+                        </div>
+                        <span id="twitch-status" class="status-badge status-disconnected">OFFLINE</span>
+                    </div>
+                    
+                    <div class="toggle-container">
+                        <span class="toggle-label">Aktifkan Twitch Chat</span>
+                        <label class="switch">
+                            <input type="checkbox" id="twitch-enable">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="twitch-channel">Twitch Channel Username</label>
+                        <input type="text" id="twitch-channel" placeholder="contoh: perdafos">
+                    </div>
+                </div>
+
+                <!-- YOUTUBE CARD -->
+                <div class="card youtube-card">
+                    <div class="card-header">
+                        <div class="platform-title">
+                            <!-- YouTube SVG -->
+                            <svg viewBox="0 0 24 24"><path d="M23.498 6.163a3.003 3.003 0 0 0-2.11-2.11C19.518 3.545 12 3.545 12 3.545s-7.518 0-9.388.507a3.003 3.003 0 0 0-2.11 2.11C0 8.033 0 12 0 12s0 3.967.502 5.837a3.003 3.003 0 0 0 2.11 2.11c1.87.507 9.388.507 9.388.507s7.518 0 9.388-.507a3.003 3.003 0 0 0 2.11-2.11C24 15.967 24 12 24 12s0-3.967-.502-5.837zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+                            YouTube
+                        </div>
+                        <span id="youtube-status" class="status-badge status-disconnected">OFFLINE</span>
+                    </div>
+
+                    <div class="toggle-container">
+                        <span class="toggle-label">Aktifkan YouTube Chat</span>
+                        <label class="switch">
+                            <input type="checkbox" id="youtube-enable">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="youtube-type">Metode Hubung</label>
+                        <select id="youtube-type">
+                            <option value="channelId">Channel ID (Deteksi Live Otomatis)</option>
+                            <option value="liveId">Live Video ID (Contoh: watch?v=XXXXX)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="youtube-id">YouTube ID</label>
+                        <input type="text" id="youtube-id" placeholder="ID channel atau ID Live streaming">
+                    </div>
+                </div>
+
+                <!-- TIKTOK CARD -->
+                <div class="card tiktok-card">
+                    <div class="card-header">
+                        <div class="platform-title">
+                            <!-- TikTok SVG -->
+                            <svg viewBox="0 0 24 24"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.02 1.59 4.23a7.25 7.25 0 0 0 3.97 2.65v3.9c-1.12-.13-2.23-.55-3.21-1.16-.92-.58-1.71-1.39-2.28-2.33v7.41c.02 1.34-.34 2.67-1.04 3.79a6.83 6.83 0 0 1-5.18 3.2c-1.37.13-2.77-.07-4.04-.6a6.82 6.82 0 0 1-3.64-4.83c-.34-1.33-.23-2.73.31-4a6.82 6.82 0 0 1 4.54-3.96c.72-.18 1.47-.23 2.21-.16V12.1a3.03 3.03 0 0 0-2.4 1.13c-.63.8-.93 1.83-.83 2.85.1 1.02.63 1.95 1.48 2.5a3.06 3.06 0 0 0 3.39-.02 3.03 3.03 0 0 0 1.36-2.52V0h.01Z"/></svg>
+                            TikTok
+                        </div>
+                        <span id="tiktok-status" class="status-badge status-disconnected">OFFLINE</span>
+                    </div>
+
+                    <div class="toggle-container">
+                        <span class="toggle-label">Aktifkan TikTok Chat</span>
+                        <label class="switch">
+                            <input type="checkbox" id="tiktok-enable">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="tiktok-username">TikTok Username</label>
+                        <input type="text" id="tiktok-username" placeholder="@username_anda">
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="action-bar">
+                <button type="submit" class="btn-save">Simpan & Terapkan Pengaturan</button>
+            </div>
+        </form>
+
+        <!-- Preview Log Box -->
+        <div class="preview-card">
+            <div class="preview-header">
+                <div class="preview-title">
+                    Log Chat Live (Preview overlay)
+                </div>
+            </div>
+            <div id="preview-log" class="preview-log">
+                <div class="empty-log">Menunggu pesan masuk dari streams...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="toast">Konfigurasi Berhasil Disimpan!</div>
+
+    <script>
+        const previewLog = document.getElementById('preview-log');
+        const toast = document.getElementById('toast');
+
+        // Render Status Badge
+        function updateStatusUI(platform, state) {
+            const badge = document.getElementById(`${platform}-status`);
+            if (!badge) return;
+
+            badge.className = 'status-badge';
+            
+            if (state === 'connected') {
+                badge.classList.add('status-connected');
+                badge.innerText = 'TERHUBUNG';
+            } else if (state === 'connecting') {
+                badge.classList.add('status-connecting');
+                badge.innerText = 'MENGHUBUNGKAN';
+            } else if (state === 'error') {
+                badge.classList.add('status-error');
+                badge.innerText = 'ERROR / OFFLINE';
+            } else {
+                badge.classList.add('status-disconnected');
+                badge.innerText = 'NONAKTIF';
+            }
+        }
+
+        // Fetch current config on load
+        async function loadConfiguration() {
+            try {
+                const res = await fetch('/api/config');
+                const config = await res.json();
+                
+                document.getElementById('twitch-enable').checked = config.enabledPlatforms.twitch;
+                document.getElementById('twitch-channel').value = config.twitchChannel;
+
+                document.getElementById('youtube-enable').checked = config.enabledPlatforms.youtube;
+                document.getElementById('youtube-type').value = config.youtubeType || 'channelId';
+                document.getElementById('youtube-id').value = config.youtubeId;
+
+                document.getElementById('tiktok-enable').checked = config.enabledPlatforms.tiktok;
+                document.getElementById('tiktok-username').value = config.tiktokUsername;
+            } catch (err) {
+                console.error('Failed to load configuration:', err);
+            }
+        }
+
+        // Save config
+        async function saveConfiguration(event) {
+            event.preventDefault();
+            
+            const payload = {
+                twitchChannel: document.getElementById('twitch-channel').value.trim(),
+                youtubeId: document.getElementById('youtube-id').value.trim(),
+                youtubeType: document.getElementById('youtube-type').value,
+                tiktokUsername: document.getElementById('tiktok-username').value.trim(),
+                enabledPlatforms: {
+                    twitch: document.getElementById('twitch-enable').checked,
+                    youtube: document.getElementById('youtube-enable').checked,
+                    tiktok: document.getElementById('tiktok-enable').checked
+                }
+            };
+
+            try {
+                const res = await fetch('/api/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (res.ok) {
+                    showToast();
+                }
+            } catch (err) {
+                alert('Gagal menyimpan konfigurasi');
+                console.error(err);
+            }
+        }
+
+        function showToast() {
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // Websocket connection to get live statuses and live test logs
+        function connectWS() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}`;
+            const socket = new WebSocket(wsUrl);
+
+            socket.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    
+                    if (data.type === 'init') {
+                        // Apply status values
+                        Object.keys(data.status).forEach(platform => {
+                            updateStatusUI(platform, data.status[platform]);
+                        });
+                    } else if (data.type === 'status') {
+                        Object.keys(data.status).forEach(platform => {
+                            updateStatusUI(platform, data.status[platform]);
+                        });
+                    } else if (data.type === 'message') {
+                        addLogItem(data);
+                    }
+                } catch (err) {
+                    console.error('Error parsing WS message in settings:', err);
+                }
+            };
+
+            socket.onclose = () => {
+                setTimeout(connectWS, 3000);
+            };
+        }
+
+        function addLogItem(msg) {
+            // Remove empty log placeholder if it exists
+            const emptyPlaceholder = previewLog.querySelector('.empty-log');
+            if (emptyPlaceholder) {
+                emptyPlaceholder.remove();
+            }
+
+            const item = document.createElement('div');
+            item.className = 'log-item';
+            item.innerHTML = `
+                <span class="log-tag ${msg.platform}">${msg.platform}</span>
+                <span class="log-name">${msg.displayName}:</span>
+                <span class="log-msg">${escapeHTML(msg.message)}</span>
+            `;
+
+            previewLog.appendChild(item);
+            previewLog.scrollTop = previewLog.scrollHeight;
+
+            // Keep only last 100 entries in log preview
+            while (previewLog.children.length > 100) {
+                previewLog.removeChild(previewLog.firstChild);
+            }
+        }
+
+        function escapeHTML(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+        }
+
+        // Initializing
+        loadConfiguration();
+        connectWS();
+    </script>
+</body>
+</html>

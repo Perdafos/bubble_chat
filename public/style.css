@@ -1,0 +1,191 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: transparent; /* Transparent for OBS Overlay */
+    overflow: hidden;
+    font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    height: 100vh;
+    width: 100vw;
+}
+
+#chat-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: flex-start;
+    height: 100vh;
+    padding: 20px;
+    gap: 12px;
+}
+
+/* Chat bubble styling with Glassmorphism */
+.bubble {
+    display: flex;
+    align-items: flex-start;
+    background: rgba(15, 15, 22, 0.65);
+    backdrop-filter: blur(12px) saturate(180%);
+    -webkit-backdrop-filter: blur(12px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 18px;
+    padding: 10px 16px;
+    max-width: 500px;
+    color: #f3f4f6;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+    animation: bubbleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    transform-origin: left bottom;
+    transition: opacity 0.5s ease, transform 0.5s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Add a glowing platform indicator on the left border */
+.bubble::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: transparent;
+    border-radius: 4px 0 0 4px;
+}
+
+/* Platform Specific Accents */
+.bubble.platform-twitch {
+    border-color: rgba(169, 112, 255, 0.25);
+    box-shadow: 0 8px 32px 0 rgba(169, 112, 255, 0.1);
+}
+.bubble.platform-twitch::before {
+    background: linear-gradient(to bottom, #a970ff, #772ce8);
+}
+
+.bubble.platform-youtube {
+    border-color: rgba(255, 78, 80, 0.25);
+    box-shadow: 0 8px 32px 0 rgba(255, 78, 80, 0.1);
+}
+.bubble.platform-youtube::before {
+    background: linear-gradient(to bottom, #ff4e50, #f9d423);
+}
+
+.bubble.platform-tiktok {
+    border-color: rgba(37, 244, 238, 0.25);
+    box-shadow: 0 8px 32px 0 rgba(37, 244, 238, 0.07), 0 8px 32px 0 rgba(254, 44, 85, 0.07);
+}
+.bubble.platform-tiktok::before {
+    background: linear-gradient(to bottom, #25f4ee, #fe2c55);
+}
+
+/* User Avatar Styling */
+.avatar-container {
+    position: relative;
+    margin-right: 12px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+/* If no avatar, twitch uses custom badge or letter avatar */
+.default-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+    color: #ffffff;
+    text-transform: uppercase;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+/* Small Platform Badge over Avatar */
+.platform-badge {
+    position: absolute;
+    bottom: -4px;
+    right: -4px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.platform-twitch .platform-badge {
+    background: #6441a5;
+}
+.platform-youtube .platform-badge {
+    background: #ff0000;
+}
+.platform-tiktok .platform-badge {
+    background: #000000;
+    border: 0.5px solid rgba(255, 255, 255, 0.2);
+}
+
+.platform-badge svg {
+    width: 100%;
+    height: 100%;
+    fill: white;
+}
+
+/* Chat text content */
+.chat-content {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.user-name-wrapper {
+    display: flex;
+    align-items: center;
+    margin-bottom: 2px;
+}
+
+.user-name {
+    font-weight: 600;
+    font-size: 14px;
+    letter-spacing: 0.2px;
+}
+
+.message {
+    font-weight: 400;
+    font-size: 15px;
+    line-height: 1.4;
+    word-break: break-word;
+    color: #e5e7eb;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* Exiting state animation */
+.bubble.fade-out {
+    opacity: 0;
+    transform: translateX(-30px) scale(0.95);
+}
+
+/* Smooth keyframes */
+@keyframes bubbleIn {
+    0% {
+        opacity: 0;
+        transform: translateY(20px) scale(0.9);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
