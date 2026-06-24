@@ -1,11 +1,11 @@
 {
   "twitchChannel": "perdafos",
-  "youtubeId": "",
-  "youtubeType": "channelId",
-  "tiktokUsername": "",
+  "youtubeId": "@DafaGhaitsaYogatama",
+  "youtubeType": "handle",
+  "tiktokUsername": "@Perdafos",
   "enabledPlatforms": {
     "twitch": true,
-    "youtube": false,
-    "tiktok": false
+    "youtube": true,
+    "tiktok": true
   }
 }

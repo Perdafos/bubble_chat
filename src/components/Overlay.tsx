@@ -30,6 +30,24 @@ function getUsernameColor(username: string): string {
   return `hsl(${h}, 90%, 72%)`;
 }
 
+// Convert http/https URL to ws/wss URL
+function getWebSocketUrl(url: string): string {
+  let cleanUrl = url.trim();
+  if (!cleanUrl) return '';
+  
+  // If it's already ws:// or wss://, return as is
+  if (cleanUrl.startsWith('ws://') || cleanUrl.startsWith('wss://')) {
+    return cleanUrl;
+  }
+  
+  // If it doesn't start with http:// or https://, prepend http:// to parse properly
+  if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
+    cleanUrl = 'http://' + cleanUrl;
+  }
+  
+  return cleanUrl.replace(/^https:/i, 'wss:').replace(/^http:/i, 'ws:');
+}
+
 export const Overlay: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   
@@ -40,6 +58,7 @@ export const Overlay: React.FC = () => {
   // Parse configurations from query parameters (Vite React frontend)
   const searchParams = new URLSearchParams(window.location.search);
   const twitchChannel = searchParams.get('twitch') || '';
+  const customServer = searchParams.get('server') || '';
   
   const isLocalMode = searchParams.get('local') !== 'false';
 
@@ -82,25 +101,32 @@ export const Overlay: React.FC = () => {
       timestamp: Date.now()
     });
 
-    // --- MODE 1: LOCAL WEBSOCKET CONNECTION ---
-    if (isLocalMode) {
-      const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-      const wsUrl = isLocal
-        ? `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`
-        : 'ws://localhost:3000';
+    // --- MODE 1: WEBSOCKET CONNECTION (LOCAL OR CUSTOM SERVER) ---
+    if (isLocalMode || customServer) {
+      let wsUrl = '';
+      if (customServer) {
+        wsUrl = getWebSocketUrl(customServer);
+      } else {
+        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        wsUrl = isLocal
+          ? `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`
+          : 'ws://localhost:3000';
+      }
 
-      console.log(`Connecting to local WebSocket server: ${wsUrl}`);
+      console.log(`Connecting to WebSocket server: ${wsUrl}`);
       const socket = new WebSocket(wsUrl);
       wsRef.current = socket;
 
       socket.onopen = () => {
-        console.log('Connected to local backend server! Using server-managed feeds.');
+        console.log('Connected to backend server! Using server-managed feeds.');
         addMessage({
           id: 'sys-ws-connected',
           platform: 'twitch',
           username: 'system',
           displayName: 'System',
-          message: 'Terhubung ke server lokal! Mode multi-stream aktif.',
+          message: customServer
+            ? `Terhubung ke server online (${customServer})! Mode multi-stream aktif.`
+            : 'Terhubung ke server lokal! Mode multi-stream aktif.',
           color: '#10b981',
           avatar: '',
           timestamp: Date.now()
@@ -119,13 +145,15 @@ export const Overlay: React.FC = () => {
       };
 
       socket.onclose = () => {
-        console.log('Local WebSocket server offline. Falling back to Standalone Mode (Browser-Direct).');
+        console.log('WebSocket server offline. Falling back to Standalone Mode (Browser-Direct).');
         addMessage({
           id: 'sys-ws-offline',
           platform: 'youtube',
           username: 'system',
           displayName: 'System',
-          message: 'Server lokal offline. Menggunakan koneksi browser langsung (Twitch saja).',
+          message: customServer
+            ? `Server online (${customServer}) offline. Menggunakan koneksi browser langsung (Twitch saja).`
+            : 'Server lokal offline. Menggunakan koneksi browser langsung (Twitch saja).',
           color: '#f59e0b',
           avatar: '',
           timestamp: Date.now()
@@ -150,7 +178,7 @@ export const Overlay: React.FC = () => {
         try { tmiClientRef.current.disconnect(); } catch (e) {}
       }
     };
-  }, [twitchChannel, isLocalMode]);
+  }, [twitchChannel, isLocalMode, customServer]);
 
   // Twitch Client-side connection helper
   const startStandaloneTwitch = (channel: string) => {

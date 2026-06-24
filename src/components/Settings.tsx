@@ -5,7 +5,8 @@ import {
   Copy, 
   Check, 
   AlertTriangle, 
-  Laptop 
+  Laptop,
+  Globe
 } from 'lucide-react';
 import type { Status } from '../types';
 import '../settings.css';
@@ -15,6 +16,7 @@ export const Settings: React.FC = () => {
   const [youtubeId, setYoutubeId] = useState('');
   const [youtubeType, setYoutubeType] = useState<'channelId' | 'liveId' | 'handle'>('channelId');
   const [tiktokUsername, setTiktokUsername] = useState('');
+  const [serverUrl, setServerUrl] = useState('http://localhost:3000');
   
   const [twitchEnable, setTwitchEnable] = useState(true);
   const [youtubeEnable, setYoutubeEnable] = useState(false);
@@ -32,6 +34,7 @@ export const Settings: React.FC = () => {
 
   // Load configuration from localStorage and check host URL
   useEffect(() => {
+    let initialServerUrl = 'http://localhost:3000';
     if (typeof window !== 'undefined') {
       setAppUrl(window.location.origin);
       
@@ -39,6 +42,7 @@ export const Settings: React.FC = () => {
       const savedYoutube = localStorage.getItem('youtubeId') || '';
       const savedYoutubeType = (localStorage.getItem('youtubeType') as 'channelId' | 'liveId' | 'handle') || 'channelId';
       const savedTiktok = localStorage.getItem('tiktokUsername') || '';
+      const savedServerUrl = localStorage.getItem('serverUrl') || 'http://localhost:3000';
 
       const savedTwitchEnable = localStorage.getItem('twitchEnable') !== 'false';
       const savedYoutubeEnable = localStorage.getItem('youtubeEnable') === 'true';
@@ -48,26 +52,46 @@ export const Settings: React.FC = () => {
       setYoutubeId(savedYoutube);
       setYoutubeType(savedYoutubeType);
       setTiktokUsername(savedTiktok);
+      setServerUrl(savedServerUrl);
+      initialServerUrl = savedServerUrl;
       
       setTwitchEnable(savedTwitchEnable);
       setYoutubeEnable(savedYoutubeEnable);
       setTiktokEnable(savedTiktokEnable);
     }
 
-    connectLocalWS();
+    connectWS(initialServerUrl);
 
     return () => {
       if (wsRef.current) wsRef.current.close();
     };
   }, []);
 
-  const connectLocalWS = () => {
+  const connectWS = (url: string) => {
     if (typeof window === 'undefined') return;
-    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    const wsUrl = isLocal
-      ? `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`
-      : 'ws://localhost:3000';
+    
+    if (wsRef.current) {
+      wsRef.current.close();
+    }
 
+    let wsUrl = '';
+    if (url) {
+      let targetUrl = url.trim();
+      if (!targetUrl.startsWith('ws://') && !targetUrl.startsWith('wss://')) {
+        if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
+          targetUrl = 'http://' + targetUrl;
+        }
+        targetUrl = targetUrl.replace(/^https:/i, 'wss:').replace(/^http:/i, 'ws:');
+      }
+      wsUrl = targetUrl;
+    } else {
+      const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      wsUrl = isLocal
+        ? `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`
+        : 'ws://localhost:3000';
+    }
+
+    console.log(`Connecting to backend WebSocket server: ${wsUrl}`);
     const socket = new WebSocket(wsUrl);
     wsRef.current = socket;
 
@@ -93,8 +117,11 @@ export const Settings: React.FC = () => {
         youtube: 'disconnected',
         tiktok: 'disconnected'
       });
-      // Reconnect in 5 seconds
-      setTimeout(connectLocalWS, 5000);
+      // Reconnect in 5 seconds using the latest URL saved in localStorage
+      setTimeout(() => {
+        const currentSavedUrl = localStorage.getItem('serverUrl') || 'http://localhost:3000';
+        connectWS(currentSavedUrl);
+      }, 5000);
     };
 
     socket.onerror = () => {
@@ -114,7 +141,9 @@ export const Settings: React.FC = () => {
     }
     if (tiktokEnable && tiktokUsername) params.push(`tiktok=${encodeURIComponent(tiktokUsername)}`);
     
-    if (!isServerActive) {
+    if (serverUrl) {
+      params.push(`server=${encodeURIComponent(serverUrl)}`);
+    } else if (!isServerActive) {
       params.push('local=false');
     }
 
@@ -200,41 +229,54 @@ export const Settings: React.FC = () => {
     localStorage.setItem('youtubeId', finalId);
     localStorage.setItem('youtubeType', finalType);
     localStorage.setItem('tiktokUsername', tiktokUsername);
+    localStorage.setItem('serverUrl', serverUrl);
     
     localStorage.setItem('twitchEnable', twitchEnable ? 'true' : 'false');
     localStorage.setItem('youtubeEnable', youtubeEnable ? 'true' : 'false');
     localStorage.setItem('tiktokEnable', tiktokEnable ? 'true' : 'false');
 
-    // Save to local server config if active
-    if (isServerActive) {
-      try {
-        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-        const configUrl = isLocal ? '/api/config' : 'http://localhost:3000/api/config';
-
-        await fetch(configUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            twitchChannel,
-            youtubeId: finalId,
-            youtubeType: finalType,
-            tiktokUsername,
-            enabledPlatforms: {
-              twitch: twitchEnable,
-              youtube: youtubeEnable,
-              tiktok: tiktokEnable
-            }
-          })
-        });
-      } catch (err) {
-        console.warn('Failed to save to local config endpoint (running serverless).');
+    // Save to server config
+    try {
+      let configUrl = serverUrl.trim();
+      if (!configUrl.startsWith('http://') && !configUrl.startsWith('https://')) {
+        configUrl = 'http://' + configUrl;
       }
+      if (configUrl.endsWith('/')) {
+        configUrl = configUrl.slice(0, -1);
+      }
+      configUrl = `${configUrl}/api/config`;
+
+      console.log(`Saving config to server: ${configUrl}`);
+      const response = await fetch(configUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          twitchChannel,
+          youtubeId: finalId,
+          youtubeType: finalType,
+          tiktokUsername,
+          enabledPlatforms: {
+            twitch: twitchEnable,
+            youtube: youtubeEnable,
+            tiktok: tiktokEnable
+          }
+        })
+      });
+      if (response.ok) {
+        console.log('Saved settings to server successfully!');
+      } else {
+        console.warn('Server returned error status when saving config:', response.status);
+      }
+    } catch (err) {
+      console.warn('Failed to save to config endpoint on server. Server might be offline or unreachable.', err);
     }
+
+    // Connect to the new WS server
+    connectWS(serverUrl);
 
     setCopied(false);
     alert('Pengaturan disimpan!');
   };
-
 
   const copyToClipboard = () => {
     const url = generateOverlayUrl();
@@ -260,6 +302,8 @@ export const Settings: React.FC = () => {
     return 'OFFLINE';
   };
 
+  const isLocalServer = serverUrl.includes('localhost') || serverUrl.includes('127.0.0.1');
+
   return (
     <div className="settings-wrapper">
       <header>
@@ -270,32 +314,81 @@ export const Settings: React.FC = () => {
         <p>Konfigurasi live stream chat Twitch, YouTube, dan TikTok (React + TS)</p>
       </header>
 
-      {/* Dynamic Warning Alert */}
+      {/* Dynamic Alert based on Server Connectivity & URL Type */}
       {isServerActive ? (
-        <div className="info-alert">
-          <Laptop className="alert-icon" size={20} />
-          <div className="alert-content">
-            <h4>Mode Server Lokal Aktif 💻</h4>
-            <p>
-              Server Node.js berjalan di komputer Anda. Modul integrasi Twitch, YouTube, dan TikTok berjalan penuh secara real-time.
-            </p>
+        isLocalServer ? (
+          <div className="info-alert">
+            <Laptop className="alert-icon" size={20} />
+            <div className="alert-content">
+              <h4>Mode Server Lokal Aktif 💻</h4>
+              <p>
+                Server Node.js berjalan di komputer Anda (`{serverUrl}`). Modul integrasi Twitch, YouTube, dan TikTok berjalan penuh secara real-time.
+              </p>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="info-alert" style={{ borderColor: 'rgba(16, 185, 129, 0.4)', backgroundColor: 'rgba(16, 185, 129, 0.08)' }}>
+            <Globe className="alert-icon" size={20} style={{ color: 'var(--success-color)' }} />
+            <div className="alert-content">
+              <h4 style={{ color: 'var(--success-color)' }}>Mode Server Online Aktif 🌐</h4>
+              <p>
+                Terhubung ke server cloud di `{serverUrl}`! Modul integrasi Twitch, YouTube, dan TikTok berjalan secara online tanpa membebani laptop Anda.
+              </p>
+            </div>
+          </div>
+        )
       ) : (
-        <div className="info-alert warning">
-          <AlertTriangle className="alert-icon" size={20} />
-          <div className="alert-content">
-            <h4>Mode Standalone Serverless Aktif 🌐</h4>
-            <p>
-              Anda menjalankan overlay secara serverless (di Vercel). Chat Twitch terhubung langsung di browser. **Catatan: TikTok & YouTube chat membutuhkan server lokal aktif di PC Anda saat Anda streaming.**
-            </p>
+        isLocalServer ? (
+          <div className="info-alert warning">
+            <AlertTriangle className="alert-icon" size={20} />
+            <div className="alert-content">
+              <h4>Server Lokal Offline / Standalone Aktif ⚠️</h4>
+              <p>
+                Gagal terhubung ke server lokal di `{serverUrl}`. Jika Anda ingin mengambil chat YouTube & TikTok, silakan jalankan server lokal Anda (`start_chat.bat`). Chat Twitch tetap berfungsi langsung di browser.
+              </p>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="info-alert warning">
+            <AlertTriangle className="alert-icon" size={20} />
+            <div className="alert-content">
+              <h4>Server Online Offline / Standalone Aktif ⚠️</h4>
+              <p>
+                Gagal terhubung ke server online di `{serverUrl}`. Pastikan server cloud Anda sudah dideploy dan sedang berjalan. Chat Twitch tetap berfungsi langsung di browser.
+              </p>
+            </div>
+          </div>
+        )
       )}
 
       <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
         <div className="cards-grid">
           
+          {/* SERVER CONNECTION CARD */}
+          <div className="card server-card">
+            <div className="card-header">
+              <div className="platform-title" style={{ color: 'var(--info-color)' }}>
+                Koneksi Server
+              </div>
+              <span className={`status-badge ${isServerActive ? 'status-connected' : 'status-disconnected'}`}>
+                {isServerActive ? 'TERHUBUNG' : 'OFFLINE'}
+              </span>
+            </div>
+            
+            <div className="form-group">
+              <label>URL Server Backend (Node.js)</label>
+              <input 
+                type="text" 
+                value={serverUrl}
+                onChange={(e) => setServerUrl(e.target.value)}
+                placeholder="contoh: https://bubble-chat-backend.onrender.com atau http://localhost:3000" 
+              />
+              <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+                Gunakan URL cloud (seperti Render/Railway) untuk menjalankan chat online penuh tanpa membebani laptop lokal. Biarkan default (`http://localhost:3000`) jika menjalankan server lokal.
+              </p>
+            </div>
+          </div>
+
           {/* TWITCH CARD */}
           <div className="card twitch-card">
             <div className="card-header">
@@ -397,20 +490,19 @@ export const Settings: React.FC = () => {
                   type="checkbox" 
                   checked={tiktokEnable}
                   onChange={(e) => setTiktokEnable(e.target.checked)}
-                  disabled={!isServerActive} // TikTok requires server active
                 />
                 <span className="slider"></span>
               </label>
             </div>
 
             <div className="form-group">
-              <label>TikTok Username {!isServerActive && "(Butuh Server Lokal)"}</label>
+              <label>TikTok Username</label>
               <input 
                 type="text" 
                 value={tiktokUsername}
                 onChange={(e) => setTiktokUsername(e.target.value)}
                 placeholder="@username_live" 
-                disabled={!tiktokEnable || !isServerActive}
+                disabled={!tiktokEnable}
               />
             </div>
           </div>

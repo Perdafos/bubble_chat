@@ -122,6 +122,7 @@ header p {
 .card.twitch-card { border-top: 4px solid var(--twitch-color); }
 .card.youtube-card { border-top: 4px solid var(--youtube-color); }
 .card.tiktok-card { border-top: 4px solid var(--tiktok-color); }
+.card.server-card { border-top: 4px solid var(--info-color); }
 
 .card-header {
   display: flex;
